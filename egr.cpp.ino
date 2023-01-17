@@ -11,14 +11,13 @@ Adafruit_FreeTouch touchSensor = Adafruit_FreeTouch(
   CAPTOUCH_PIN, OVERSAMPLE_4, RESISTOR_50K, FREQ_MODE_NONE
 );
 
+uint8_t state;
 uint32_t prevTime;          // Time of last animation mode switch
 
 // For calibration: change this variable to something between
 // your capacitive touch serial readouts for on and off
 // without proper output this will maybe have to be guessed
 int touch = 650;
-
-uint8_t state = 0;
 
 // Modes --------------------------------------------------------------
 void gradient() {
@@ -28,6 +27,7 @@ void gradient() {
 
 // ran once at the start
 void setup() {
+  state = 0;
   prevTime = millis();
   pixels.begin();
   pixels.setBrightness(60); // ~1/3 brightness
