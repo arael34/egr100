@@ -2,10 +2,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Low power NeoPixel earrings example.  Makes a nice blinky display
-// with just a few LEDs on at any time...uses MUCH less juice than
-// rainbow display!
-
 #include <Adafruit_NeoPixel.h>
 
 #define PIN        1
@@ -14,6 +10,7 @@
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUM_LEDS, PIN);
 
+bool up = true;
 uint8_t  mode   = 0,        // Current animation effect
          offset = 0;        // Position of spinner animation
 uint32_t color  = 0xFF8000; // Starting color = amber
@@ -55,20 +52,57 @@ void loop() {
     offset++;                      // Shift animation by 1 pixel on next frame
     break;
 
-    case 3:
+    case 3: // Alternating
       bool shift = false;
-      for (i = 0; i < NUM_LEDS; i++) {
-        uint32_t c = i % 2 == shift ? 1 : 0 ? color : 0; // i like ternary operators.
-        pixels.setPixelColor(i, c);
+      for (i = 0; i < NUM_LEDS; i++)
+        pixels.setPixelColor(i, i % 2 == shift ? 1 : 0 ? color : 0);
+      pixels.show();
+      delay(500);
+      shift = !shift;
+      break;
+      
+    case 4: // Build up
+      i = random(NUM_LEDS);
+      if (up) {
+        while (pixels.getPixelColor(i) != 0)
+          i = random(NUM_LEDS);
+        pixels.setPixelColor(i, color);
+        if (++offset == 15)
+          up = false;
+      } else {
+        while (pixels.getPixelColor(i) == 0)
+          i = random(NUM_LEDS);
+        pixels.setPixelColor(i, 0);
+        if (--offset == 0)
+          up = true;
       }
       pixels.show();
+      delay(250);
+      break;
+      
+    case 5: // B  
+      // uint16_t temp = offset;
+      if (up) {
+        offset = (offset + 1) * 2 - 1;
+        if (offset == 255)
+          up = false;
+      } else {
+        offset = (offset + 1) / 2 - 1;
+        if (offset == 1)
+          up = true;
+      }
+      if (pixels.getPixelColor(0) == 0)
+        pixels.fill(color, 0);
+      pixels.setBrightness(offset);
+      pixels.show();
       delay(50);
-      shift = !shift;
       break;
   }
 
   t = millis();                    // Current time in milliseconds
   if((t - prevTime) > 4000) {      // Every 4 seconds...
+    offset = 0;
+    up = true;
     mode++;                        // Advance to next animation mode
     if(mode > MODE_COUNT) {                 // End of modes?
       mode = 1;                    // Start over from beginning
