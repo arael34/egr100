@@ -6,7 +6,7 @@
 
 #define PIN        1
 #define NUM_LEDS   16
-#define MODE_COUNT 3
+#define MODE_COUNT 5
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUM_LEDS, PIN);
 
