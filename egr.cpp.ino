@@ -1,42 +1,81 @@
+// SPDX-FileCopyrightText: 2017 Phillip Burgess for Adafruit Industries
+//
+// SPDX-License-Identifier: MIT
+
+// Low power NeoPixel earrings example.  Makes a nice blinky display
+// with just a few LEDs on at any time...uses MUCH less juice than
+// rainbow display!
+
 #include <Adafruit_NeoPixel.h>
-#include <Adafruit_FreeTouch.h>
 
-#define TOUCH_PIN 0 // I assume 0 is fine
-#define PIXEL_PIN 1
-#define NUM_LEDS 16 // find out actual pixel count
+#define PIN        1
+#define NUM_LEDS   16
+#define MODE_COUNT 3
 
-Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUM_LEDS, PIXEL_PIN);
-// read docs for args
-Adafruit_FreeTouch touchSensor = Adafruit_FreeTouch(
-  CAPTOUCH_PIN, OVERSAMPLE_4, RESISTOR_50K, FREQ_MODE_NONE
-);
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUM_LEDS, PIN);
 
-uint8_t state;
+uint8_t  mode   = 0,        // Current animation effect
+         offset = 0;        // Position of spinner animation
+uint32_t color  = 0xFF8000; // Starting color = amber
 uint32_t prevTime;          // Time of last animation mode switch
 
-// For calibration: change this variable to something between
-// your capacitive touch serial readouts for on and off
-// without proper output this will maybe have to be guessed
-int touch = 650;
-
-// Modes --------------------------------------------------------------
-void gradient() {
-  
-}
-// --------------------------------------------------------------------
-
-// ran once at the start
 void setup() {
-  state = 0;
-  prevTime = millis();
   pixels.begin();
   pixels.setBrightness(60); // ~1/3 brightness
-  if (!touchSensor.begin()) {
-    // error handling ig
-  }
+  prevTime = millis();      // Starting time
 }
 
-// loop code
 void loop() {
-  // touch logic 
+  uint8_t  i;
+  uint32_t t;
+
+  switch(mode) {
+
+   case 1: // Random sparkles - just one LED on at a time!
+    i = random(NUM_LEDS);           // Choose a random pixel
+    pixels.setPixelColor(i, color); // Set it to current color
+    pixels.show();                  // Refresh LED states
+    // Set same pixel to "off" color now but DON'T refresh...
+    // it stays on for now...both this and the next random
+    // pixel will be refreshed on the next pass.
+    pixels.setPixelColor(i, 0);
+    delay(10);                      // 10 millisecond delay
+    break;
+ 
+   case 2: // Spinny wheel (4 LEDs on at a time)
+    for(i=0; i<NUM_LEDS; i++) {    // For each LED...
+      uint32_t c = 0;              // Assume pixel will be "off" color
+      if(((offset + i) & 7) < 2) { // For each 8 pixels, 2 will be...
+        c = color;                 // ...assigned the current color
+      }
+      pixels.setPixelColor(i, c);  // Set color of pixel 'i'
+    }
+    pixels.show();                 // Refresh LED states
+    delay(50);                     // 50 millisecond delay
+    offset++;                      // Shift animation by 1 pixel on next frame
+    break;
+
+    case 3:
+      bool shift = false;
+      for (i = 0; i < NUM_LEDS; i++) {
+        uint32_t c = i % 2 == shift ? 1 : 0 ? color : 0; // i like ternary operators.
+        pixels.setPixelColor(i, c);
+      }
+      pixels.show();
+      delay(50);
+      shift = !shift;
+      break;
+  }
+
+  t = millis();                    // Current time in milliseconds
+  if((t - prevTime) > 4000) {      // Every 4 seconds...
+    mode++;                        // Advance to next animation mode
+    if(mode > MODE_COUNT) {                 // End of modes?
+      mode = 1;                    // Start over from beginning
+      color >>= 8;                 // And change color
+      if(!color) color = 0xFF8000; // preiodically reset to amber
+    }
+    pixels.clear();                // Set all pixels to 'off' state
+    prevTime = t;                  // Record the time of the last mode change
+  }
 }
