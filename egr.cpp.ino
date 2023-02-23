@@ -10,7 +10,7 @@
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUM_LEDS, PIN);
 
-bool up = true;
+bool     shift = true;
 uint8_t  mode   = 0,        // Current animation effect
          offset = 0;        // Position of spinner animation
 uint32_t color  = 0xFF8000; // Starting color = amber
@@ -28,15 +28,12 @@ void loop() {
 
   switch(mode) {
 
-   case 1: // Random sparkles - just one LED on at a time!
-    i = random(NUM_LEDS);           // Choose a random pixel
-    pixels.setPixelColor(i, color); // Set it to current color
-    pixels.show();                  // Refresh LED states
-    // Set same pixel to "off" color now but DON'T refresh...
-    // it stays on for now...both this and the next random
-    // pixel will be refreshed on the next pass.
-    pixels.setPixelColor(i, 0);
-    delay(10);                      // 10 millisecond delay
+   case 1: // breathing
+    int brightness = pixels.getBrightness() + (shift ? 10 : -10);
+    pixels.setBrightness(brightness);
+    if (brightness > 100 || brightness < 20) shift = !shift;
+    pixels.show();
+    delay(50);
     break;
  
    case 2: // Spinny wheel (4 LEDs on at a time)
@@ -52,48 +49,41 @@ void loop() {
     offset++;                      // Shift animation by 1 pixel on next frame
     break;
 
-    case 3: // Alternating
-      bool shift = false;
+    case 3: // alternating
       for (i = 0; i < NUM_LEDS; i++)
-        pixels.setPixelColor(i, i % 2 == shift ? 1 : 0 ? color : 0);
+        pixels.setPixelColor(i, i % 2 == (shift ? 1 : 0) ? color : 0);
       pixels.show();
       delay(500);
       shift = !shift;
       break;
       
-    case 4: // Build up
-      i = random(NUM_LEDS);
-      if (up) {
-        while (pixels.getPixelColor(i) != 0)
-          i = random(NUM_LEDS);
-        pixels.setPixelColor(i, color);
-        if (++offset == 15)
-          up = false;
+    case 4: // build up
+      if (!shift) {
+        pixels.setPixelColor(offset++, color);
+        shift = offset == 16;
       } else {
-        while (pixels.getPixelColor(i) == 0)
-          i = random(NUM_LEDS);
-        pixels.setPixelColor(i, 0);
-        if (--offset == 0)
-          up = true;
+        pixels.setPixelColor(offset--, 0);
+        shift = !(offset == 0);
       }
+
       pixels.show();
-      delay(250);
+      delay(100);
       break;
-      
-    case 5: // B  
-      // uint16_t temp = offset;
-      if (up) {
-        offset = (offset + 1) * 2 - 1;
-        if (offset == 255)
-          up = false;
-      } else {
-        offset = (offset + 1) / 2 - 1;
-        if (offset == 1)
-          up = true;
+    
+    case 5: // Long spin
+      for (int i = 0; i < 16; i++) {
+        uint32_t color = pixels.getPixelColor(i);
+
+        int w = ((color >> 24) & 0xFF) * 0.75; // extract W value
+        int r = ((color >> 16) & 0xFF) * 0.75; // extract R value
+        int g = ((color >> 8) & 0xFF) * 0.75;  // extract G value
+        int b = (color & 0xFF) * 0.75;         // extract B value
+
+        pixels.setPixelColor(i, (w << 24) | (r << 16) | (g << 8) | b);
       }
-      if (pixels.getPixelColor(0) == 0)
-        pixels.fill(color, 0);
-      pixels.setBrightness(offset);
+      pixels.setPixelColor(offset++, color);
+      offset > 15 && (offset = 0);
+
       pixels.show();
       delay(50);
       break;
@@ -102,7 +92,8 @@ void loop() {
   t = millis();                    // Current time in milliseconds
   if((t - prevTime) > 4000) {      // Every 4 seconds...
     offset = 0;
-    up = true;
+    shift = false;
+    pixels.setBrightness(60);
     mode++;                        // Advance to next animation mode
     if(mode > MODE_COUNT) {                 // End of modes?
       mode = 1;                    // Start over from beginning
